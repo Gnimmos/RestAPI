@@ -1,0 +1,105 @@
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const models = require('../models'); 
+const Employee = models.Employee; 
+
+const app = express();
+app.use(cors());
+app.use(express.json()); 
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cors({origin: '*'}));
+
+app.get('/', (req, res) => {
+  res.send('API');
+});
+
+app.get('/employees', async (req, res) => {
+  try {
+    const employees = await Employee.findAll();
+    return res.status(200).json(employees);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+app.get('/employees/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const employee = await Employee.findByPk(id);
+
+    if (!employee) {
+      return res.status(404).json({ error: 'Employee not found' });
+    }
+    return res.status(200).json(employee);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/employees', async (req, res) => {
+  try {
+    const { name, email, position, salary } = req.body;
+
+    if (!name || !email) {
+      return res.status(400).json({ error: 'Name and email are required' });
+    }
+
+    const newEmployee = await Employee.create({ name, email, position, salary });
+    return res.status(201).json(newEmployee);
+  } catch (error) {
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({ error: 'Email must be unique' });
+    }
+    console.error(error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.put('/employees/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, position, salary } = req.body;
+
+    const employee = await Employee.findByPk(id);
+    if (!employee) {
+      return res.status(404).json({ error: 'Employee not found' });
+    }
+
+    if (name !== undefined) employee.name = name;
+    if (email !== undefined) employee.email = email;
+    if (position !== undefined) employee.position = position;
+    if (salary !== undefined) employee.salary = salary;
+
+    await employee.save();
+    return res.status(200).json(employee);
+  } catch (error) {
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({ error: 'Email must be unique' });
+    }
+    console.error(error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.delete('/employees/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const employee = await Employee.findByPk(id);
+
+    if (!employee) {
+      return res.status(404).json({ error: 'Employee not found' });
+    }
+
+    await employee.destroy();
+    return res.status(204).send(); // No content
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+module.exports = app;
